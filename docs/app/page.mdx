@@ -1,0 +1,54 @@
+# @fairgarden/monolith
+
+Compose several Next.js apps into one deployable app.
+
+Next only supports `basePath` for a monorepo, which is the right shape when each
+app is built and deployed on its own. A self-hosted `core` or `starter`
+distribution wants the opposite: one server, one build, one thing to run. This
+library mounts each app's routes under a path prefix and merges their configs so
+that works.
+
+```ts
+// apps/monolith/next.config.ts
+import { withMonolith } from '@fairgarden/monolith'
+
+export default withMonolith(
+  {},
+  {
+    id: '@fairgarden/id',
+    membership: '@fairgarden/membership',
+  }
+)
+```
+
+`id`'s routes are then served from `/id`, its assets from `public/id`, and its
+Pages Router API from `/api/id`.
+
+## Start here
+
+- [Starting a repository](/overview/starting) — scaffolding a monolith or a module
+- [Overview](/overview) — what mounting an app actually does
+- [Mounting](/overview/mounting) — symlinks, and why `next dev` needs different treatment
+- [Routing](/overview/routing) — how rewrites, redirects and headers are merged
+- [Next versions](/overview/versions) — which versions can be mounted together
+- [Dependencies](/overview/dependencies) — what the monolith has to install
+- [Modules](/overview/modules) — keeping submodules up to date
+- [Portability](/overview/portability) — keeping an app mountable
+- [Functions](/functions) — the API
+
+## Install
+
+```bash
+pnpm add @fairgarden/monolith
+```
+
+The package has three entry points:
+
+| Import | For |
+| --- | --- |
+| `@fairgarden/monolith` | the monolith's `next.config.ts`, and an app's portability check |
+| `@fairgarden/monolith/link` | an app's own components |
+| `@fairgarden/monolith/eslint` | an app's `eslint.config.mjs` |
+
+It also installs a `fg-monolith` command for the things that have to happen
+before a build.

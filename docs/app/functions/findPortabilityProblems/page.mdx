@@ -1,0 +1,42 @@
+# `findPortabilityProblems`
+
+```ts
+findPortabilityProblems(nextConfig: NextConfig, root: string): string[]
+```
+
+Everything about an app that would not survive being mounted, as a list. This is
+what [`withMonolithicPortability`](/functions/withMonolithicPortability)
+reports; it is exported separately so a test or a CI check can assert on the
+list rather than scrape log output.
+
+```ts
+import { findPortabilityProblems } from '@fairgarden/monolith'
+
+test('the app stays mountable', () => {
+  expect(findPortabilityProblems(nextConfig, import.meta.dirname)).toEqual([])
+})
+```
+
+## Parameters
+
+- **`nextConfig`** — the app's config, checked for options the monolith owns or
+  that have to be shared.
+- **`root`** — the app directory, searched for files a deployment only gets one
+  of.
+
+## Returns
+
+One string per problem, each `<what>: <why>`. Empty when the app is portable.
+
+```
+proxy.ts: a deployment has one proxy; the monolith would have to run it and strip the mount prefix itself
+basePath: only the monolith may set this; mounted apps are served from their mount point instead
+```
+
+The text before the colon is what `ignore` matches on.
+
+## Notes
+
+This is a static check of config and file layout. It does not inspect imports —
+the [ESLint plugin](/overview/portability) does that, because it needs to run
+per file.

@@ -1,0 +1,65 @@
+{
+  "name": "@fairgarden/monolith",
+  "version": "0.1.0-alpha.0",
+  "private": true,
+  "description": "Compose several Next.js apps into a single deployable monolith",
+  "license": "UNLICENSED",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./link": {
+      "types": "./dist/portable-link.d.ts",
+      "default": "./dist/portable-link.js"
+    },
+    "./eslint": {
+      "types": "./dist/eslint.d.ts",
+      "default": "./dist/eslint.js"
+    }
+  },
+  "bin": {
+    "fg-monolith": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput",
+    "lint": "eslint",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.29.9",
+    "@fairgarden/distribution": "workspace:0.1.0-alpha.0",
+    "merge-package.json": "^9.1.0",
+    "semver": "^7.8.5",
+    "sync-directory": "^6.0.5"
+  },
+  "devDependencies": {
+    "@babel/types": "^8.0.6",
+    "@types/babel__parser": "^7.1.5",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/semver": "^7.8.0",
+    "@typescript-eslint/eslint-plugin": "^8.70.0",
+    "@typescript-eslint/parser": "^8.70.0",
+    "eslint": "^9.39.5",
+    "next": "^16.3.5",
+    "react": "^19.3.0",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "next": ">=15",
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  }
+}

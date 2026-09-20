@@ -1,0 +1,46 @@
+# `getRegisteredApps`
+
+```ts
+getRegisteredApps(): ResolvedApp[]
+```
+
+The apps seen by the most recent `withMonolith` evaluation.
+
+This exists so tooling can discover what a monolith composes without a second
+source of truth. `fg-monolith` loads the monolith's `next.config.*` with
+`FG_MONOLITH_SKIP_LINK=1`, so nothing is written to the file tree, and then
+reads the list back.
+
+```ts
+import { getRegisteredApps } from '@fairgarden/monolith'
+
+process.env.FG_MONOLITH_SKIP_LINK = '1'
+const config = (await import(configPath)).default
+if (typeof config === 'function') await config('phase-production-build')
+
+for (const app of getRegisteredApps()) {
+  console.log(app.prefix, app.root)
+}
+```
+
+## Returns
+
+A `ResolvedApp` per mounted app:
+
+| Field | Meaning |
+| --- | --- |
+| `name` | mount name |
+| `prefix` | path prefix, `/<name>` |
+| `root` | the app directory on disk |
+| `packageName` | the app's own package name, when it has one |
+| `appDir` | its App Router directory |
+| `publicDir` | its static assets, when it has any |
+| `pagesDir` | its Pages Router directory, when it has one |
+| `pagesApiDir` | its `pages/api`, when it has one |
+| `apiViaPages` | whether `/api/...` paths are Pages Router API routes |
+| `nextConfig` | its loaded config |
+
+## Notes
+
+Empty until a `withMonolith` config has been evaluated, and replaced on each
+evaluation rather than accumulated. It reflects one monolith, not several.

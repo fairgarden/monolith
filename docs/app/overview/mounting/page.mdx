@@ -1,0 +1,84 @@
+# Mounting
+
+The committed symlinks under `src/app/`, `src/pages/` and `public/` are the
+source of truth. What Next reads is derived from them, and how depends on which
+router and which command.
+
+## The two routers behave differently
+
+`next build` follows a symlinked directory, so it reads `src/app/` as committed
+and needs nothing generated. **`next dev` does not** — it returns 404 for every
+route underneath a symlinked directory. It does follow a symlinked *file*, so
+development gets a tree of real directories with each route file symlinked
+individually.
+
+The **Pages Router cannot be symlinked at all**. Next resolves a route to its
+real path, and a Pages Router route reached through a symlink loses track of its
+`pages/` root. The build then fails looking for `/_document` while rendering the
+404, which is a confusing symptom of a resolution problem. So `pages/` is always
+materialised as real files.
+
+## Strategies
+
+| Strategy | Produces | Used by |
+| --- | --- | --- |
+| `source` | nothing; Next reads `src/app/` | `next build` |
+| `mirror` | `app/`: real directories, one symlink per file | `next dev` |
+| `hardlink` / `copy` | `app/`: duplicated files | filesystems without usable symlinks |
+
+`auto`, the default, picks `source` for builds and `mirror` for `next dev`.
+
+`mirror` is preferred over `hardlink` because a symlink resolves by path rather
+than by inode. An editor that saves by writing a new file and renaming it over
+the old one breaks a hardlink, leaving the mounted copy serving stale content; a
+symlink is unaffected. A watcher re-derives the tree when files are added or
+removed, which is all it has to catch.
+
+`public/` needs none of this. Static assets are served straight through the
+committed symlink, in development and production alike.
+
+## Two consequences worth knowing
+
+Next refuses to run when `app` and `pages` live in different folders. An app
+with a Pages Router therefore forces the App Router tree to be derived as well,
+so `source` quietly becomes `mirror`.
+
+And because Next prefers `app/` over `src/app/` when both exist, a build clears
+any `app/` left behind by a dev session rather than let it shadow the committed
+tree.
+
+## Self-reference
+
+Turbopack resolves a mounted file from its real location, so the monolith's
+`node_modules` is not on its lookup path. An app that imports its own modules by
+package name — which it should, see [Portability](/overview/portability) — needs
+to be able to find itself. `withMonolith` writes
+`<app>/node_modules/<package name>` pointing at the app, leaving any real
+install alone. Pass `{ selfReference: false }` to opt out.
+
+## When a module cannot be cloned
+
+A module does not have to come from a submodule. Give an app both a `root` and a
+`package`, and the checkout is used when its routes are there with the package
+as the fallback:
+
+```ts
+withMonolith(config, {
+  id: { root: '../id', package: '@fairgarden/id' },
+})
+```
+
+An empty directory is what a build host leaves behind when it cannot read a
+submodule's remote, and that is when the package takes over. A private package
+installs with a token, which is a credential a build host can be given, whereas
+a private submodule needs an SSH key it cannot have.
+
+Those files are **copied, not linked**. Turbopack will not process a route whose
+real path is inside `node_modules` — the build fails with an internal error
+about writing an app endpoint, which says nothing about the cause. So a
+package-sourced app is materialised outside `node_modules` automatically, while
+path-sourced apps are still symlinked. A committed link that points into
+`node_modules` is skipped for the same reason.
+
+Because such an app has nothing in the committed tree, having one means the
+derived tree is always built, the same way a Pages Router forces it.

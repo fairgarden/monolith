@@ -1,0 +1,51 @@
+# Routing
+
+Each app's `rewrites`, `redirects` and `headers` are merged into the monolith's,
+with every `source` and `destination` moved under the app's mount.
+
+```ts
+// in apps/id
+{ source: '/oidc/:path*', destination: '/api/oidc/:path*' }
+
+// in the monolith
+{ source: '/id/oidc/:path*', destination: '/api/id/oidc/:path*' }
+```
+
+Next's own paths (`/_next/...`) and absolute URLs are left alone. The monolith's
+own entries stay ahead of the apps', apps keep the order they were declared in,
+and rewrite phases (`beforeFiles`, `afterFiles`, `fallback`) are preserved. A
+bare rewrites array is treated as `afterFiles`, which is what Next does.
+
+## API routes move differently
+
+Notice `/api/oidc` became `/api/id/oidc` and not `/id/api/oidc`. Next only
+treats files **directly** under `pages/api/` as API routes, so an app's
+`pages/api` mounts at `pages/api/<name>` — nesting it under the app's mount
+would turn the handlers into pages. Paths follow the files.
+
+This applies only to apps that actually have a `pages/api`. For everything else
+`/api/...` is an App Router route handler and moves under the app's mount like
+any other path. [`prefixPath`](/functions/prefixPath) is the function that
+decides.
+
+## Config that cannot be merged
+
+Some options describe the whole deployment, so merging them is meaningless.
+`withMonolith` refuses to start when an app disagrees with the monolith about
+`i18n`, `trailingSlash`, `skipTrailingSlashRedirect`,
+`skipMiddlewareUrlNormalize`, `output` or `assetPrefix`, or when an app sets
+`basePath` or `distDir`, which only the monolith may set.
+
+Failing is deliberate. Dropping an app's `i18n` silently would produce a
+deployment that half works.
+
+## Links are not rewritten
+
+`basePath` is not used, so an app's own hrefs are not prefixed for it. A
+`next/link` pointing at `/settings` still points at `/settings` in the monolith,
+where the app lives at `/id/settings`. Use
+[`createLink`](/functions/createLink), and the `no-next-link` lint rule to catch
+the ones you miss.
+
+This is a real limitation of the monolith: without `basePath`, a deployment only
+works on a wildcard domain or a subdomain.

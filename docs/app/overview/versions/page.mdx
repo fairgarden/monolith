@@ -1,0 +1,45 @@
+# Next versions
+
+A mounted app is not built on its own. The monolith compiles every app's source
+with the Next **the monolith** resolves, so an app can never need a newer one
+than the monolith has.
+
+`withMonolith` checks this before it mounts anything and refuses to start:
+
+```
+Incompatible Next config in the monolith:
+  - "membership" is built for Next 16.9.0 but the monolith runs 16.3.5. The
+    monolith compiles every app, so it has to be at least as new as the newest one.
+```
+
+## The rule
+
+Exact agreement is not required. An app pinned to `16.3.0` inside a monolith on
+`16.3.5` is fine — the monolith is ahead, which is the direction that works.
+
+- **Majors have to match.** A monolith on 16 compiling an app written for 15
+  will hit conventions that Next removed; a monolith on 15 has no idea what a 16
+  app is asking for. Neither is something the monolith can paper over.
+- **The monolith has to be at least as new as the newest app.** It is doing the
+  compiling, so it has to understand everything any app uses.
+
+Prereleases compare as semver says, so a monolith on `16.4.0-canary.1` is newer
+than an app on `16.3.5`.
+
+## What gets compared
+
+The Next each package **actually resolves**, not the range its `package.json`
+asks for. A range of `^16.3.5` tells you what an app would accept, not what it
+was built against; in a workspace both may well resolve to the same install, in
+which case there is nothing to report.
+
+When a version cannot be resolved the check is skipped, since there is nothing
+to compare. That happens while tooling loads a config outside an install —
+`fg-monolith` does exactly this to read the app list.
+
+## Upgrading
+
+Upgrade the monolith first, then the apps. The reverse order fails the check,
+which is the point: an app that has moved ahead of the monolith would otherwise
+be compiled by a Next that does not understand it, and the failure would surface
+somewhere far less obvious.

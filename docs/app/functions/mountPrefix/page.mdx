@@ -1,0 +1,45 @@
+# `mountPrefix`
+
+```ts
+mountPrefix(packageName: string): string
+```
+
+Where an app is mounted, or `''` when it is running on its own.
+
+```ts
+import { mountPrefix } from '@fairgarden/monolith/link'
+
+mountPrefix('@fairgarden/id')   // '/id' mounted, '' standalone
+```
+
+Use it wherever an app builds an absolute path that
+[`createLink`](/functions/createLink) and
+[`createHref`](/functions/createHref) do not cover — an OIDC discovery document,
+a callback URL, a `Location` header.
+
+```ts
+// apps/id/pages/api/oidc/[...path].ts
+const baseUrl = `${mountPrefix('@fairgarden/id')}/oidc`
+```
+
+Without this the endpoints such a document advertises point at `/oidc/auth`,
+which does not exist in a monolith where the app lives at `/id/oidc/auth`. The
+API is reachable and still useless to a client.
+
+## How it works
+
+Reads `MONOLITH_MOUNTS`, a JSON object keyed by package name that
+[`withMonolith`](/functions/withMonolith) sets through Next's `env` config. The
+variable name is also exported as `MOUNTS_ENV`.
+
+Unset means standalone, which is the same as being mounted at the root, so the
+same code works either way. Malformed JSON returns `''` rather than throwing —
+an app should not fail to render because a mount could not be read.
+
+## Notes
+
+`process.env.MONOLITH_MOUNTS` has to be written out in full wherever it is read.
+Bundlers only substitute a literal member access; a computed
+`process.env[name]` survives into the bundle and reads as `undefined` in the
+browser, so every URL would quietly lose its prefix. This function does it
+correctly, which is a reason to use it rather than read the variable yourself.

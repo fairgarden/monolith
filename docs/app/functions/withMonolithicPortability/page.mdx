@@ -1,0 +1,72 @@
+# `withMonolithicPortability`
+
+```ts
+withMonolithicPortability(
+  nextConfig?: NextConfig,
+  options?: PortabilityOptions
+): NextConfig
+```
+
+Checks, from inside an app, that it could be mounted into a monolith. Returns
+the config unchanged — it only reports.
+
+```ts
+// apps/id/next.config.ts
+import { withMonolithicPortability } from '@fairgarden/monolith'
+
+export default withMonolithicPortability(nextConfig)
+```
+
+```
+This app would not port cleanly into a monolith:
+  - proxy.ts: a deployment has one proxy; the monolith would have to run it
+    and strip the mount prefix itself
+See @fairgarden/monolith for what a mounted app can rely on.
+```
+
+## Options
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `root` | `process.cwd()` | where to look |
+| `level` | `'warn'` | `'error'` throws instead of reporting |
+| `ignore` | `[]` | findings to accept, by the text before the colon |
+
+```ts
+withMonolithicPortability(nextConfig, {
+  level: 'error',
+  ignore: ['proxy.ts'],
+})
+```
+
+`'warn'` keeps it a reminder while working on the app; set `'error'` in CI to
+make it a gate.
+
+## What it reports
+
+**Config the monolith owns** — `basePath` and `distDir`, which would fight the
+monolith, since a mounted app is served from its mount point instead.
+
+**Config that has to be shared** — `i18n`, `trailingSlash`,
+`skipTrailingSlashRedirect`, `skipMiddlewareUrlNormalize`, `output` and
+`assetPrefix`. One server serves every app, so these have to agree, which means
+they belong on the monolith.
+
+**Conventions a deployment only gets one of** — `proxy`/`middleware`,
+`instrumentation`, `pages/_app` and `pages/_document`, looked for at the app
+root and under `src/`. An app can use these on its own, but mounting several
+apps means only one could ever win, so rather than let one app's copy silently
+disappear it says so.
+
+**Routes that only work at the site root** — `robots`, `sitemap` and `manifest`
+under `app/` or `src/app/`, which end up at `/<name>/robots.txt` where nothing
+looks for them.
+
+## Notes
+
+Next reads the config in the main process and again in a build worker. The
+report is marked in the environment so the worker, which inherits it, stays
+quiet — it appears once per build.
+
+For the list as data rather than log output, use
+[`findPortabilityProblems`](/functions/findPortabilityProblems).

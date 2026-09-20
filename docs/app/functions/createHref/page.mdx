@@ -1,0 +1,39 @@
+# `createHref`
+
+```ts
+createHref(packageName: string): (path: string) => string
+```
+
+The imperative counterpart to [`createLink`](/functions/createLink), for
+anywhere an app builds a path itself.
+
+```ts
+// apps/id/lib/link.ts
+import { createHref } from '@fairgarden/monolith/link'
+
+export const href = createHref('@fairgarden/id')
+```
+
+```ts
+import { useRouter } from 'next/navigation'
+import { href } from '@fairgarden/id/lib/link'
+
+const router = useRouter()
+router.push(href('/settings'))   // '/settings' standalone, '/id/settings' mounted
+```
+
+Also useful for redirect targets, callback URLs, and anything else that ends up
+in a header or a payload rather than in JSX.
+
+## Standalone
+
+The prefix is `''` when `MONOLITH_MOUNTS` is unset, so the path comes back
+unchanged and the same code works either way.
+
+## Notes
+
+Unlike `createLink`, this reads the mount on every call rather than once, so it
+is safe to use before the bundler has folded anything in — but prefer
+`createLink` in components.
+
+For a prefix to apply yourself, use [`mountPrefix`](/functions/mountPrefix).

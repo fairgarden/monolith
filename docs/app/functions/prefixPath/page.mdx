@@ -1,0 +1,50 @@
+# `prefixPath`
+
+```ts
+prefixPath(value: string, prefix: string, apiViaPages?: boolean): string
+```
+
+Moves a path into an app's mount point. This is what
+[`withMonolith`](/functions/withMonolith) applies to every `source` and
+`destination` when merging an app's routing config.
+
+```ts
+prefixPath('/login', '/id')                  // '/id/login'
+prefixPath('/', '/id')                       // '/id'
+prefixPath('/:path*', '/id')                 // '/id/:path*'
+```
+
+## What is left alone
+
+```ts
+prefixPath('/_next/static/x.txt', '/id')     // unchanged — Next's own path
+prefixPath('https://example.com/a', '/id')   // unchanged — absolute URL
+```
+
+Anything not starting with `/` is returned as-is, as are `/_next/`, `/__next`
+and `/api/__`. Route parameters survive because only the front of the path is
+touched.
+
+## `apiViaPages`
+
+```ts
+prefixPath('/api/oidc/:path*', '/id', true)  // '/api/id/oidc/:path*'
+prefixPath('/api/thing', '/id', false)       // '/id/api/thing'
+```
+
+Next only treats files directly under `pages/api/` as API routes, so an app's
+`pages/api` mounts at `pages/api/<name>` and the prefix goes **after** `/api`
+rather than before it. Pass `true` for apps that have a `pages/api`; their
+`ResolvedApp.apiViaPages` says so.
+
+For an app without one, `/api/...` is an App Router route handler and moves
+under the mount like any other path.
+
+A lookalike is not mistaken for the real thing — `/apiary` with `apiViaPages`
+still becomes `/id/apiary`.
+
+## Notes
+
+A prefix of `''` is not special-cased here; pass a real mount. For hrefs in
+application code, use [`prefixHref`](/functions/prefixHref), which handles the
+unmounted case and object hrefs.

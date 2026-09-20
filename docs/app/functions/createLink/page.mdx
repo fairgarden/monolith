@@ -1,0 +1,49 @@
+# `createLink`
+
+```ts
+createLink(packageName: string): (props: LinkProps) => JSX.Element
+```
+
+A `next/link` that knows where its app is mounted. Build one per app and use it
+in place of `next/link`.
+
+```tsx
+// apps/id/lib/link.ts
+import { createLink } from '@fairgarden/monolith/link'
+
+export const Link = createLink('@fairgarden/id')
+```
+
+```tsx
+import { Link } from '@fairgarden/id/lib/link'
+
+<Link href="/settings">Settings</Link>
+// standalone -> /settings
+// mounted    -> /id/settings
+```
+
+Props are `next/link`'s, passed through untouched. Only `href` is rewritten,
+using [`prefixHref`](/functions/prefixHref).
+
+## Why it is needed
+
+The monolith does not use `basePath`, so nothing prefixes an app's own hrefs for
+it. A raw `next/link` to `/settings` still points at `/settings`, which is not
+where the app lives. The `no-next-link` lint rule catches the ones you miss —
+see [Portability](/overview/portability).
+
+## Standalone
+
+`packageName` is looked up in `MONOLITH_MOUNTS`, which is unset when the app
+runs on its own. The prefix is then `''` and this is `next/link` with one extra
+call, so the same component works either way.
+
+## Notes
+
+The mount is read once, when the component is created, so the bundler folds it
+into a constant. Create it at module scope rather than inside a component.
+
+This works in client components: `MONOLITH_MOUNTS` is set through Next's `env`
+config, which is inlined into the browser bundle at build time.
+
+For imperative navigation use [`createHref`](/functions/createHref).

@@ -1,0 +1,28 @@
+# Functions
+
+## `@fairgarden/monolith`
+
+For the monolith's `next.config.ts`:
+
+- [`withMonolith`](/functions/withMonolith) — compose apps into one deployable app
+- [`prefixPath`](/functions/prefixPath) — move a path into an app's mount
+- [`getRegisteredApps`](/functions/getRegisteredApps) — what the last evaluated config mounted
+
+For an app's own `next.config.ts`:
+
+- [`withMonolithicPortability`](/functions/withMonolithicPortability) — report what would not survive being mounted
+- [`findPortabilityProblems`](/functions/findPortabilityProblems) — the same list, as data
+
+## `@fairgarden/monolith/link`
+
+For an app's components, so its URLs carry its mount:
+
+- [`createLink`](/functions/createLink) — a `next/link` that knows where it is
+- [`createHref`](/functions/createHref) — the same for `router.push`
+- [`mountPrefix`](/functions/mountPrefix) — the raw prefix
+- [`prefixHref`](/functions/prefixHref) — move one href, given a prefix
+
+## `@fairgarden/monolith/eslint`
+
+A flat-config plugin with `no-escaping-relative-imports` and `no-next-link`.
+See [Portability](/overview/portability).

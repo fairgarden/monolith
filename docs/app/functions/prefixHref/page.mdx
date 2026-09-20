@@ -1,0 +1,47 @@
+# `prefixHref`
+
+```ts
+prefixHref<T extends Href>(href: T, prefix: string): T
+```
+
+Moves one href into a mount point. This is what
+[`createLink`](/functions/createLink) applies; use it directly when you have a
+prefix already and want to apply it yourself.
+
+```ts
+prefixHref('/a/b', '/id')      // '/id/a/b'
+prefixHref('/a/b', '')         // '/a/b'  — not mounted
+```
+
+## What is left alone
+
+```ts
+prefixHref('https://example.com/a', '/id')  // absolute URL
+prefixHref('//example.com/a', '/id')        // protocol-relative
+prefixHref('#section', '/id')               // fragment
+prefixHref('login', '/id')                  // relative
+prefixHref('/id/a/b', '/id')                // already prefixed
+```
+
+Only paths rooted at `/` belong to the app. A path that already carries the
+prefix is not prefixed twice, and a lookalike is not mistaken for it —
+`/identity` with prefix `/id` becomes `/id/identity`.
+
+## Object hrefs
+
+```ts
+prefixHref({ pathname: '/a', query: { x: '1' } }, '/id')
+// { pathname: '/id/a', query: { x: '1' } }
+```
+
+The `pathname` is moved and everything else is kept. An object without a
+`pathname` is returned unchanged.
+
+## Notes
+
+Pure — it does not read the environment. Pair it with
+[`mountPrefix`](/functions/mountPrefix), or use `createLink`, which does both.
+
+`Href` is `string | { pathname?: string | null }`, structural so the package
+does not depend on Next to describe it. `pathname` is nullable because Next's
+own `UrlObject` allows it.

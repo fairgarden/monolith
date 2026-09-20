@@ -1,0 +1,62 @@
+# Portability
+
+An app does not have to know it is in a monolith, but it does have to avoid a
+few things. Both checks below run from inside the app, so a problem is found
+while working on the app rather than when someone tries to mount it.
+
+## Config and conventions
+
+Wrap the app's own config:
+
+```ts
+// apps/id/next.config.ts
+import { withMonolithicPortability } from '@fairgarden/monolith'
+
+export default withMonolithicPortability(nextConfig)
+```
+
+It reports config the monolith owns or that has to be shared, conventions a
+deployment only gets one of (`proxy`/`middleware`, `instrumentation`,
+`pages/_app`, `pages/_document`), and routes that only mean anything at the site
+root (`robots`, `sitemap`, `manifest`, which would end up at
+`/<name>/robots.txt`). See
+[`withMonolithicPortability`](/functions/withMonolithicPortability).
+
+## Imports
+
+A mounted app's route files are not where they appear to be, so a relative
+import that climbs out of `app/` or `pages/` no longer lands anywhere:
+
+```ts
+// apps/id/app/[locale]/page.tsx
+import { defaultLocale } from '../../../lib/constants/localization'
+```
+
+That compiles perfectly on its own. In the monolith, Turbopack cannot resolve it
+from `pages/`, and from `app/` it resolves but fails the type check. Both are
+integration-time failures for something a lint rule catches immediately.
+
+Import by package name instead, which resolves from anywhere because
+`withMonolith` gives each app a self-reference:
+
+```ts
+import { defaultLocale } from '@fairgarden/id/lib/constants/localization'
+```
+
+```js
+// apps/id/eslint.config.mjs
+import monolith from '@fairgarden/monolith/eslint'
+
+export default [...monolith.configs.recommended]
+```
+
+- **`no-escaping-relative-imports`** (error) — a relative import inside `app/`
+  or `pages/` may not resolve above that directory. Imports that stay inside the
+  tree are fine, since the tree moves as a unit. Autofixes to the package-name
+  import, taking the name from the app's own `package.json` or from
+  `{ packageName }`. Covers re-exports and dynamic `import()`.
+- **`no-next-link`** (warn) — `next/link` does not prefix hrefs with the app's
+  mount. Point it at your own Link with
+  `{ replacement: '@fairgarden/id/lib/link' }`.
+
+Both apply only to files inside a route tree; a shared `lib/` is left alone.

@@ -1,0 +1,65 @@
+# Keeping modules up to date
+
+Submodules and versions are handled by `fg-dist`, in
+`@fairgarden/distribution`. This page covers what a monolith needs from them.
+
+Modules are git submodules, so a module's version is the commit the repository
+pins. Two commands compare that against what the module's own repository has
+released.
+
+## sync
+
+```bash
+fg-dist sync
+```
+
+```
+apps/id          v1.0.0  -> v1.0.1 (patch), v1.1.0 (minor), v2.0.0 (major)
+packages/design  v0.3.0  -> v0.3.1 (patch)
+apps/members     untagged  no version tags
+
+2 module(s) have newer versions. Run `fg-dist bump` to take them, or
+`fg-dist bump --major` to include the 1 major upgrade(s).
+```
+
+Each line is a submodule: the version it is pinned at, the newest upgrade of
+each kind available, and anything else worth knowing — untagged commits past the
+newest tag, uncommitted changes, or a remote that could not be reached.
+
+A version shown as `v1.0.0+` means the pin is a descendant of that tag rather
+than the tag itself.
+
+## bump
+
+```bash
+fg-dist bump                 # newest patch or minor
+fg-dist bump --major         # include majors
+fg-dist bump id design       # only these
+fg-dist bump --dry-run       # report without moving
+```
+
+Moves each submodule's checkout to its newest version and leaves the new
+pointers for you to commit. Majors are held back unless asked for: they are the
+ones that need someone to read a changelog first.
+
+It touches nothing else. No `package.json` is rewritten — pnpm stays in charge
+of package versions — and nothing is committed.
+
+## What counts as a version
+
+Only tags that parse as semver. `v1.2.3` and `1.2.3` both work.
+
+Commits past the newest tag are counted and reported but never bumped to. A
+commit carries no statement about what changed, which is exactly what a version
+is for. A module with no tags at all is listed and left alone, with nothing to
+compare.
+
+## Safety
+
+`bump` refuses to move a submodule with uncommitted changes, rather than fail
+part way through a checkout or discard work. `sync` flags the same thing, so you
+see it before you try.
+
+Both fetch before comparing. `--no-fetch` uses the refs already present, which
+is what you want offline or in CI with a shallow clone; an unreachable remote is
+reported on the line rather than being fatal.

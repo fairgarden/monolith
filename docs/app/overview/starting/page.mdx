@@ -1,0 +1,172 @@
+# Starting a repository
+
+These commands live in `@fairgarden/distribution`, which owns repository shape,
+submodules and versioning. This page covers what they mean for a monolith; the
+full reference is in that package's own documentation.
+
+Both kinds of repository can be scaffolded without installing anything first.
+
+```bash
+pnpx @fairgarden/distribution init monolith acme --url https://github.com/acme/acme.git
+pnpx @fairgarden/distribution init module acme-widget --name @acme/widget \
+  --url https://github.com/acme/widget.git
+```
+
+Neither will write over a directory that already has anything in it. Both run
+`git init`, which matters because modules are consumed as submodules; pass
+`--no-git` to skip it.
+
+`--url` is where the repository will live. It becomes the `origin` remote and
+the package's `repository` field. It matters most for a module, since that is
+the URL a monolith will add it as a submodule by — see
+[Submodule URLs](/overview/starting#submodule-urls). Without it the repository
+is scaffolded with no remote, and you are told so.
+
+## A monolith repository
+
+```
+acme/
+  .npmrc                     link workspace packages by version
+  pnpm-workspace.yaml        apps/*, packages/*, packages/*/docs
+  turbo.json
+  package.json
+  apps/monolith/
+    next.config.ts           withMonolith, with an empty app map
+    src/app/                 the committed route tree
+    .gitignore               ignores the derived /app and /pages
+```
+
+`src/app/` is where the mount symlinks go, and the derived `app/` and `pages/`
+trees are gitignored — see [Mounting](/overview/mounting).
+
+## A module repository
+
+```
+acme-widget/
+  next.config.ts             withMonolithicPortability
+  eslint.config.mjs          the monolith lint rules
+  tsconfig.json              paths, so it can import itself by package name
+  lib/link.ts                a Link and href bound to this package
+  app/                       ordinary App Router routes
+```
+
+It is an ordinary Next app. The only additions are the things that keep it
+mountable: the [portability check](/functions/withMonolithicPortability), the
+[lint rules](/overview/portability), and a
+[portable Link](/functions/createLink). The generated page imports that Link by
+package name, which is the convention the lint rules enforce.
+
+Run it on its own with `pnpm dev` and nothing behaves differently — the mount
+prefix is empty until a monolith sets one.
+
+## Adding a module
+
+```bash
+fg-dist add-module git@github.com:acme/widget.git
+fg-dist add-module ../widget --at packages/widget --name w
+```
+
+This adds the repository as a submodule under `apps/<name>`, depends on it from
+the monolith, and mounts it:
+
+```
+Added apps/my-widget
+Depending on @acme/widget@0.1.0-alpha.0 in apps/monolith/package.json
+Mounted at /my-widget in apps/monolith/next.config.ts
+
+Run pnpm install and `fg-monolith merge-package-json`.
+```
+
+The monolith is found by which app depends on `@fairgarden/monolith`, not by a
+fixed path, so it works whatever the app is called.
+
+## Editing the config
+
+The mount is written into `next.config.ts`:
+
+```ts
+export default withMonolith(
+  {
+    // the monolith's own Next config
+  },
+  {
+    'my-widget': '@acme/widget',
+    // mount name -> module, added by `fg-dist add-module`
+  }
+)
+```
+
+The file is parsed to find where the mount map is, and the entry is spliced into
+the original text at that offset. Printing the parsed tree back out would
+reformat the whole file and move its comments over a one-line change, so it is
+not done that way — everything except the new line is left exactly as it was.
+
+A mount name that is not a valid identifier is quoted, an existing mount is left
+alone rather than duplicated, and a missing mount map is added alongside the
+config already being passed.
+
+When the config cannot be edited — it does not import `withMonolith`, or the
+apps are declared somewhere else rather than inline — the command says so and
+prints the line to add. By then the submodule is already there, so failing the
+whole command over a line someone can paste would be the worse outcome.
+
+## Submodule URLs
+
+`.gitmodules` is committed, so whatever URL is recorded in it is what every
+later clone uses — including a build host that has no SSH key. Vercel clones
+submodules over HTTPS and only public ones, so an `scp`-style or `ssh://` URL
+checks out fine on a developer's machine and then fails in the build.
+
+Both `add-module` and `init --url` rewrite SSH URLs to HTTPS, and say so:
+
+```
+Added apps/widget from https://github.com/acme/widget.git
+(rewritten from git@github.com:acme/widget.git; a submodule is cloned without an SSH key)
+```
+
+`git@host:owner/repo.git` and `ssh://git@host:22/owner/repo.git` both become
+`https://host/owner/repo.git`. URLs that already speak HTTP are left alone, and
+so are local paths, which have no host to rewrite.
+
+`--ssh` records the URL as given. Only reach for it when nothing but a
+developer's machine will ever clone the submodule, and the command will remind
+you what that costs.
+
+`sync` reports submodules already recorded with an SSH URL, alongside the HTTPS
+form to replace them with:
+
+```
+3 module(s) are recorded with an ssh url, which a clone without a key cannot use:
+  apps/id  git@github.com:fairgarden/id.git  ->  https://github.com/fairgarden/id.git
+```
+
+`fg-dist use-https` does the rewrite for you:
+
+```bash
+fg-dist use-https             # rewrite every ssh url
+fg-dist use-https id design   # only these
+fg-dist use-https --dry-run   # report without changing .gitmodules
+```
+
+It updates `.gitmodules`, runs `git submodule sync` so existing checkouts
+follow, and leaves the change to commit.
+
+## Being cloneable is more than being https
+
+HTTPS is necessary but not sufficient: a build host has no credentials at all,
+so the repository also has to be readable anonymously — which means public.
+
+`use-https` checks exactly that afterwards, by asking each remote for a ref with
+prompting disabled, and exits non-zero when any cannot be read:
+
+```
+Checking whether each can be cloned without credentials:
+  apps/id  public
+  apps/members  not readable
+
+1 of these cannot be read anonymously, so a build host still cannot clone them.
+Make them public, or expect the build to fail.
+```
+
+`--no-verify` skips it. For a module that has to stay private, see
+[the package fallback](/overview/mounting#when-a-module-cannot-be-cloned).

@@ -1,0 +1,92 @@
+# `withMonolith`
+
+```ts
+withMonolith(
+  nextConfig?: NextConfig,
+  apps?: MonolithApps,
+  options?: MonolithOptions
+): (phase: string) => Promise<NextConfig>
+```
+
+Composes several Next apps into one. Returns a config function, which Next
+accepts as a default export.
+
+```ts
+// apps/monolith/next.config.ts
+import { withMonolith } from '@fairgarden/monolith'
+
+export default withMonolith(
+  { reactStrictMode: true },
+  { id: '@fairgarden/id' }
+)
+```
+
+## Parameters
+
+### `nextConfig`
+
+The monolith's own config. Its `rewrites`, `redirects` and `headers` are kept
+ahead of the apps'.
+
+### `apps`
+
+Mount name to app. The name becomes the URL segment, so it has to be usable as
+one.
+
+A bare string is a path when it looks like one and a package name otherwise, so
+an app can live in the surrounding monorepo or be a plain dependency:
+
+```ts
+withMonolith(config, {
+  id: '@fairgarden/id',           // resolved from node_modules
+  membership: '../membership',    // relative to the monolith
+  admin: {                        // explicit
+    root: '../admin',
+    appDir: 'src/app',
+    nextConfig: false,            // mount the routes, merge no config
+  },
+})
+```
+
+| Field | Default |
+| --- | --- |
+| `root` | — resolve by path; mutually exclusive with `package` |
+| `package` | — resolve by package name |
+| `appDir` | `app/`, then `src/app/` |
+| `publicDir` | `public/`, omitted when absent |
+| `pagesDir` | `pages/`, then `src/pages/`, omitted when absent |
+| `nextConfig` | the app's own `next.config.*`; `false` to merge none |
+
+### `options`
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `strategy` | `'auto'` | `source` for builds, `mirror` for `next dev`. See [Mounting](/overview/mounting) |
+| `root` | `process.cwd()` | the monolith directory |
+| `sourceDir` | `src/app` | committed routes directory; the Pages Router tree is its `pages` sibling |
+| `watch` | true while mirroring for `next dev` | re-derive when routes are added or removed |
+| `selfReference` | `true` | let each app resolve itself by package name |
+
+## What it does
+
+Writes the committed mount symlinks, derives whatever Next reads from them,
+merges the apps' routing config, and sets `MONOLITH_MOUNTS` so each app can find
+out where it lives.
+
+## Throws
+
+When an app needs a newer Next than the monolith, or a different major — see
+[Next versions](/overview/versions).
+
+When an app sets `basePath` or `distDir`, or disagrees with the monolith about
+`i18n`, `trailingSlash`, `skipTrailingSlashRedirect`,
+`skipMiddlewareUrlNormalize`, `output` or `assetPrefix`. Also when a mount name
+is not usable as a URL segment, or an app has no routes directory.
+
+Everything it can find is reported at once, and nothing is linked when a check
+fails, so a refused build leaves no half-written tree behind.
+
+## Notes
+
+Linking is skipped when `FG_MONOLITH_SKIP_LINK=1`, which is how `fg-monolith`
+loads the config to discover the app list without touching the file tree.

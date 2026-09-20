@@ -1,0 +1,59 @@
+# Dependencies
+
+Listing an app as a dependency of the monolith gets you most of the way. An App
+Router route is only symlinked, so Turbopack resolves it at its real path inside
+the app and finds the app's own `node_modules` from there. It is not quite
+enough, for two reasons.
+
+**Pages Router files are copied.** Their real path is inside the monolith, so
+the app's `node_modules` is no longer above them and nothing they import
+resolves.
+
+**TypeScript resolves from where the file sits in the monolith**, not from the
+symlink's target, so even App Router routes fail to type check against the app's
+dependencies. Turbopack compiles them happily, which makes this easy to miss —
+the build gets all the way to `Running TypeScript` before anything complains.
+
+## Merging
+
+`fg-monolith merge-package-json` reads what the route trees actually import and
+folds just those into the monolith's `package.json`, resolving conflicting
+ranges by semver rather than by whichever app happens to be last.
+
+```bash
+fg-monolith merge-package-json           # writes package.json
+fg-monolith merge-package-json --check   # exits 1 if out of date, for CI
+fg-monolith merge-package-json --all     # every dependency, not just imports
+```
+
+Run it before installing. The app list comes from the monolith's own
+`next.config.*`, so it stays the single source of truth.
+
+## What gets taken
+
+Only **direct** imports in `app/` and `pages/`. Anything an app reaches through
+its own package name resolves via the monolith's link to the app and carries on
+from there, so it needs nothing.
+
+- Relative imports and node builtins are skipped.
+- A subpath import is reduced to its package: `@scope/design/components/Button`
+  asks for `@scope/design`.
+- `require()` and dynamic `import()` count.
+- A `@types/` package is taken along with whatever it describes.
+- Workspace and link ranges are skipped, since those are linked rather than
+  installed.
+
+In the Fair Garden repository that is 15 packages rather than 24. Scanning
+leaves behind the app's own lint plugins, and the dependencies of a proxy the
+monolith does not mount.
+
+Use `--all` if something outside the route trees is resolved from the monolith.
+
+## Other commands
+
+```bash
+fg-monolith link       # mount without starting Next
+fg-monolith list       # print the apps and where they resolved to
+```
+
+`link` takes `--strategy` and both take `--cwd`.

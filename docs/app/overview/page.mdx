@@ -1,0 +1,58 @@
+# Overview
+
+A monolith is an ordinary Next app whose route trees are assembled from other
+apps. `withMonolith` does three things when Next loads its config.
+
+## It mounts each app
+
+For every app in the map, a symlink is written into the monolith's committed
+source tree:
+
+```bash
+src/app/
+  id/ -> ../../../id/app/
+public/
+  id/ -> ../../id/public/
+src/pages/api/
+  id/ -> ../../../../id/pages/api/
+```
+
+These are committed. They are the readable view of what the monolith is made
+of — GitHub renders them as links you can follow to the app they point at — and
+they are the input to everything else. What Next actually reads is derived from
+them; see [Mounting](/overview/mounting).
+
+## It merges each app's config
+
+Each app's own `next.config.*` is loaded and its `rewrites`, `redirects` and
+`headers` are folded into the monolith's, with every path moved under the app's
+prefix. Options that the whole deployment shares are checked rather than merged,
+so an app that disagrees with the monolith stops the build instead of quietly
+losing. See [Routing](/overview/routing).
+
+## It tells each app where it is
+
+Because `basePath` is not used, nothing prefixes an app's own URLs for it. Each
+app is told its mount through the `MONOLITH_MOUNTS` environment variable, which
+[`mountPrefix`](/functions/mountPrefix) and [`createLink`](/functions/createLink)
+read. Unset means the app is running on its own, which is the same as being
+mounted at the root — so the same code works either way.
+
+## It checks they can live together
+
+An app that needs a newer Next than the monolith, or a different major, stops
+the build rather than being miscompiled — see [Next versions](/overview/versions).
+So does an app that disagrees about an option the whole deployment shares.
+
+## What an app has to give up
+
+An app is mounted, not deployed, so anything a deployment only gets one of
+belongs to the monolith: `proxy`/`middleware`, `instrumentation`, `pages/_app`,
+`pages/_document`, and `basePath`/`distDir`. Options like `i18n` and
+`trailingSlash` have to be identical across every app, because one server serves
+all of them.
+
+This is why the monolith is recommended only for `core` or `starter`
+distributions. A `full` or `enterprise` distribution should be separate
+deployments. [`withMonolithicPortability`](/functions/withMonolithicPortability)
+reports these from inside the app, before anyone tries to mount it.
