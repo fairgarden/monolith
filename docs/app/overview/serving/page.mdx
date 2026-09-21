@@ -1,0 +1,57 @@
+# What a monolith can serve
+
+Every mounted app's routes have to fit in one tree, and a path can only belong
+to one of them. Most distributions never run into that — a mount name is a whole
+path segment, and apps rarely claim each other's — but the ones that do cannot
+be a monolith at all.
+
+## An app at the site root
+
+An app mounted as `www` would serve `/www/about`. A marketing site wants
+`/about`, so give it the root:
+
+```ts
+withMonolith(config, {
+  www: { package: '@fairgarden/www', prefix: '/' },
+  id: '@fairgarden/id',
+})
+```
+
+`www` then supplies `/` and `/about` while `id` stays at `/id/login`. Its paths
+are not prefixed at all, and its files sit alongside the monolith's own rather
+than under a directory of their own — so its `layout.tsx` becomes the monolith's
+root layout.
+
+That last part means the monolith cannot also have one, and only one app can
+take the root.
+
+## Collisions are refused, not resolved
+
+Before anything is mounted, `withMonolith` works out what each app would serve
+and refuses when two of them, or an app and the monolith, want the same path:
+
+```
+These apps cannot be served from one deployment:
+  - "www" and "id" both serve src/app/id (routes).
+A path can only belong to one of them. Rename a mount, or deploy the apps
+separately — a subdomain each — rather than as a monolith.
+```
+
+It covers routes, static assets and Pages Router api routes, and it runs before
+any file is written — a colliding mount would otherwise quietly replace whatever
+was there.
+
+Finding this out at build time is the point. An app that cannot share a path
+tree is one to deploy on its own, a subdomain each; a distribution scaffolded
+with `--separate` is exactly that shape.
+
+## Links are not prefixed for you
+
+`basePath` is not used, so an app's own hrefs are not rewritten. A monolith
+deployment therefore only works on a wildcard domain or a subdomain, and an app
+that builds absolute paths has to prefix them itself — see
+[`createLink`](/functions/createLink) and
+[`mountPrefix`](/functions/mountPrefix).
+
+Extending `next/link` is the alternative, and may be needed anyway for custom
+localization and similar.

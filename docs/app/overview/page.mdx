@@ -44,6 +44,13 @@ An app that needs a newer Next than the monolith, or a different major, stops
 the build rather than being miscompiled — see [Next versions](/overview/versions).
 So does an app that disagrees about an option the whole deployment shares.
 
+## It refuses what it cannot serve
+
+Every app's routes share one tree, so two apps cannot claim the same path. That
+is checked before anything is mounted — see
+[What a monolith can serve](/overview/serving), which also covers giving one app
+the site root.
+
 ## What an app has to give up
 
 An app is mounted, not deployed, so anything a deployment only gets one of
