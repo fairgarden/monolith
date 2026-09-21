@@ -1,8 +1,15 @@
 {
   "name": "@fairgarden/monolith",
   "version": "0.1.0-alpha.0",
-  "private": true,
+  "packageManager": "pnpm@10.28.0+sha512.05df71d1421f21399e053fde567cea34d446fa02c76571441bfc1c7956e98e363088982d940465fd34480d4d90a0668bc12362f8aa88000a64e83d0b0e47be48",
   "description": "Compose several Next.js apps into a single deployable monolith",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fairgarden/monolith.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",
@@ -31,11 +38,14 @@
     "build": "tsc",
     "dev": "tsc --watch --preserveWatchOutput",
     "lint": "eslint",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "canary": "fg-dist canary",
+    "release": "fg-dist release",
+    "release:check": "fg-dist release --check"
   },
   "dependencies": {
     "@babel/parser": "^7.29.9",
-    "@fairgarden/distribution": "workspace:0.1.0-alpha.0",
+    "@fairgarden/distribution": "^0.1.0-alpha.0",
     "merge-package.json": "^9.1.0",
     "semver": "^7.8.5",
     "sync-directory": "^6.0.5"
