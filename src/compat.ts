@@ -32,13 +32,29 @@ const describe = (value: unknown): string => JSON.stringify(value) ?? String(val
 const MERGED_OPTIONS = ['rewrites', 'redirects', 'headers'] as const
 
 /**
+ * Lists an app may set when the monolith already carries every entry: moving
+ * them to the monolith, as the error asks, is then visibly done, and the app
+ * still builds the same on its own.
+ */
+const CARRIED_OPTIONS = ['serverExternalPackages'] as const
+
+const missingFromBase = (
+  option: (typeof CARRIED_OPTIONS)[number],
+  app: ResolvedApp,
+  base: NextConfig
+): string[] => {
+  const carried = new Set(base[option] ?? [])
+  return (app.nextConfig[option] ?? []).filter((entry) => !carried.has(entry))
+}
+
+/**
  * An app setting anything this cannot merge.
  *
  * Dropping it silently is the failure this is meant to avoid: the app builds
  * alone with the option applied and inside a monolith without it, and nothing
  * says so.
  */
-const droppedOptions = (apps: ResolvedApp[]): string[] => {
+const droppedOptions = (apps: ResolvedApp[], base: NextConfig): string[] => {
   const problems: string[] = []
 
   for (const app of apps) {
@@ -46,6 +62,15 @@ const droppedOptions = (apps: ResolvedApp[]): string[] => {
       if ((MERGED_OPTIONS as readonly string[]).includes(option)) continue
       if ((SHARED_OPTIONS as readonly string[]).includes(option)) continue
       if ((OWNED_OPTIONS as readonly string[]).includes(option)) continue
+      if ((CARRIED_OPTIONS as readonly string[]).includes(option)) {
+        const missing = missingFromBase(option as (typeof CARRIED_OPTIONS)[number], app, base)
+        if (missing.length === 0) continue
+        problems.push(
+          `"${app.name}" sets ${option} to include ${describe(missing)}, which the ` +
+            `monolith does not. Add them to the monolith's own ${option}.`
+        )
+        continue
+      }
       problems.push(
         `"${app.name}" sets ${option}, which a monolith cannot merge. Move it ` +
           'to the monolith, or pass `nextConfig: false` for this app to say it ' +
@@ -148,7 +173,7 @@ export const assertCompatible = (
     ...(monolithRoot
       ? [...nextVersionProblems(monolithRoot, apps), ...extendsProblems(monolithRoot)]
       : []),
-    ...droppedOptions(apps),
+    ...droppedOptions(apps, base),
   ]
 
   for (const app of apps) {

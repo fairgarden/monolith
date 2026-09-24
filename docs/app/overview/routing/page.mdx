@@ -39,6 +39,20 @@ Some options describe the whole deployment, so merging them is meaningless.
 Failing is deliberate. Dropping an app's `i18n` silently would produce a
 deployment that half works.
 
+`serverExternalPackages` is the one list an app may keep, as long as the
+monolith carries every entry too. An app that needs a package left unbundled —
+the id app's `oidc-provider`, which relies on its own class names — builds the
+same on its own and mounted, and the monolith says which entries it is missing
+rather than dropping them:
+
+```ts
+// apps/monolith/next.config.ts
+export default withMonolith(
+  { serverExternalPackages: ['oidc-provider'] },
+  { id: '@fairgarden-private/id' }
+)
+```
+
 ## Links are not rewritten
 
 `basePath` is not used, so an app's own hrefs are not prefixed for it. A

@@ -179,9 +179,32 @@ test('reports app config it cannot merge instead of dropping it', async () => {
 
   await assert.rejects(
     withMonolith({}, {
-      widget: { root: 'modules/widget', nextConfig: { serverExternalPackages: ['x'] } },
+      widget: { root: 'modules/widget', nextConfig: { images: { unoptimized: true } } },
     }, { root, selfReference: false })('phase-production-build'),
-    /serverExternalPackages, which a monolith cannot merge/
+    /images, which a monolith cannot merge/
+  )
+})
+
+test('asks for serverExternalPackages to be moved to the monolith', async () => {
+  const root = monolith()
+  moduleAt(root, 'modules/widget')
+
+  await assert.rejects(
+    withMonolith({ serverExternalPackages: ['a'] }, {
+      widget: { root: 'modules/widget', nextConfig: { serverExternalPackages: ['a', 'x'] } },
+    }, { root, selfReference: false })('phase-production-build'),
+    /serverExternalPackages to include \["x"\], which the monolith does not/
+  )
+})
+
+test('accepts serverExternalPackages the monolith already carries', async () => {
+  const root = monolith()
+  moduleAt(root, 'modules/widget')
+
+  await assert.doesNotReject(
+    withMonolith({ serverExternalPackages: ['x', 'y'] }, {
+      widget: { root: 'modules/widget', nextConfig: { serverExternalPackages: ['x'] } },
+    }, { root, selfReference: false })('phase-production-build')
   )
 })
 
