@@ -3,7 +3,7 @@ import type { ResolvedApp } from './types.ts'
 
 type Rewrite = { source: string; destination: string; basePath?: false }
 type Redirect = { source: string; destination: string }
-type Header = { source: string }
+type Header = { source: string; headers: Array<{ key: string; value: string }> }
 type Rewrites = Awaited<ReturnType<NonNullable<NextConfig['rewrites']>>>
 
 /** Next's own internals are served from the monolith root, never per app. */
@@ -49,9 +49,23 @@ const prefixRedirect = <T extends Redirect>(redirect: T, app: ResolvedApp): T =>
   destination: prefixPath(redirect.destination, app.prefix, app.apiViaPages),
 })
 
+/**
+ * A `Link` header names paths too — `</theme.css>; rel=preload` — and they
+ * move with the rest. Only root-relative targets: a protocol-relative one is
+ * another host.
+ */
+const prefixLink = (value: string, app: ResolvedApp): string =>
+  value.replace(
+    /<(\/(?!\/)[^>]*)>/g,
+    (_, target: string) => `<${prefixPath(target, app.prefix, app.apiViaPages)}>`
+  )
+
 const prefixHeader = <T extends Header>(header: T, app: ResolvedApp): T => ({
   ...header,
   source: prefixPath(header.source, app.prefix, app.apiViaPages),
+  headers: header.headers.map((entry) =>
+    entry.key.toLowerCase() === 'link' ? { ...entry, value: prefixLink(entry.value, app) } : entry
+  ),
 })
 
 /** Rewrites are either a flat list or the three-phase object; normalize both. */

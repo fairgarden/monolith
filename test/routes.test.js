@@ -133,6 +133,28 @@ test('prefixes header sources and keeps the headers', async () => {
   ])
 })
 
+test('prefixes the paths a Link header names', async () => {
+  const link = [
+    '</theme.css>; rel=preload; as=style',
+    '</_next/static/a.woff2>; rel=preload; as=font',
+    '<//cdn.example/x.js>; rel=preload; as=script',
+    '<https://api.example>; rel=preconnect',
+  ].join(', ')
+  const apps = [app('id', { headers: async () => [{ source: '/', headers: [{ key: 'Link', value: link }] }] })]
+  const merged = await (await mergeHeaders({}, apps))()
+  assert.deepEqual(merged[0].headers, [
+    {
+      key: 'Link',
+      value: [
+        '</id/theme.css>; rel=preload; as=style',
+        '</_next/static/a.woff2>; rel=preload; as=font',
+        '<//cdn.example/x.js>; rel=preload; as=script',
+        '<https://api.example>; rel=preconnect',
+      ].join(', '),
+    },
+  ])
+})
+
 test('keeps apps in declaration order', async () => {
   const apps = [
     app('id', { redirects: async () => [{ source: '/a', destination: '/b' }] }),

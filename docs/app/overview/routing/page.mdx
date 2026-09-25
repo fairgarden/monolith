@@ -11,6 +11,19 @@ with every `source` and `destination` moved under the app's mount.
 { source: '/id/oidc/:path*', destination: '/api/id/oidc/:path*' }
 ```
 
+A header's `source` moves the same way, and so does every path a `Link` header
+names, so a preload still finds what it points at:
+
+```ts
+// in apps/id
+{ source: '/', headers: [{ key: 'Link', value: '</theme.css>; rel=preload; as=style' }] }
+
+// in the monolith
+{ source: '/id', headers: [{ key: 'Link', value: '</id/theme.css>; rel=preload; as=style' }] }
+```
+
+Other header values are copied as they are.
+
 Next's own paths (`/_next/...`) and absolute URLs are left alone. The monolith's
 own entries stay ahead of the apps', apps keep the order they were declared in,
 and rewrite phases (`beforeFiles`, `afterFiles`, `fallback`) are preserved. A
