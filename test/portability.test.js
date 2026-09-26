@@ -36,6 +36,38 @@ test('flags a proxy, which a deployment can only have one of', () => {
   assert.equal(matching(problems, 'proxy.ts').length, 1)
 })
 
+const LOCALE_PROXY = `import { createLocaleProxy } from '@fairgarden/indicators/proxy'
+import { indicators } from '@acme/id/lib/indicators'
+
+export const proxy = createLocaleProxy(indicators)
+export const config = { matcher: ['/'] }
+`
+
+const appWithProxy = (source) => {
+  const root = appWith([])
+  writeFileSync(path.join(root, 'proxy.ts'), source)
+  return root
+}
+
+test("accepts a proxy that is only the locale proxy, which the monolith's runs for it", () => {
+  assert.deepEqual(findPortabilityProblems({}, appWithProxy(LOCALE_PROXY)), [])
+  const renamed = LOCALE_PROXY.replace('{ createLocaleProxy }', '{ createLocaleProxy as locales }')
+    .replace('= createLocaleProxy(', '= locales(')
+  assert.deepEqual(findPortabilityProblems({}, appWithProxy(renamed)), [])
+})
+
+test('flags a locale proxy with anything more to it', () => {
+  const wrapped = LOCALE_PROXY.replace(
+    'export const proxy = createLocaleProxy(indicators)',
+    'const locales = createLocaleProxy(indicators)\nexport const proxy = (request) => locales(request)'
+  )
+  const extra = `${LOCALE_PROXY}export const runtime = 'nodejs'\n`
+  for (const source of [wrapped, extra]) {
+    const problems = findPortabilityProblems({}, appWithProxy(source))
+    assert.equal(matching(problems, 'proxy.ts').length, 1)
+  }
+})
+
 test('flags middleware under src/ too', () => {
   const problems = findPortabilityProblems({}, appWith(['src/middleware.js']))
   assert.equal(matching(problems, 'middleware').length, 1)

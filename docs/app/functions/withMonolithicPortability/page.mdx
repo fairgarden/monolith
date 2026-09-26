@@ -58,6 +58,13 @@ root and under `src/`. An app can use these on its own, but mounting several
 apps means only one could ever win, so rather than let one app's copy silently
 disappear it says so.
 
+A proxy that is only the locale proxy from `@fairgarden/indicators` is not
+reported: `createLocaleProxy` takes each app by its mount, so the monolith's own
+proxy runs it for this app too. The app's `proxy` (or `middleware`, or default
+export) has to be the call itself and `config` its only other export; anything
+more is the app's own logic, and reported. `withMonolith` then checks the other
+side, and warns when its proxy's `config.matcher` leaves out the app's mount.
+
 **Routes that only work at the site root** — `robots`, `sitemap` and `manifest`
 under `app/` or `src/app/`, which end up at `/<name>/robots.txt` where nothing
 looks for them.

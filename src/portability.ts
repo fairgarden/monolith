@@ -1,6 +1,7 @@
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import type { NextConfig } from 'next'
+import { isLocaleProxy } from './proxies.ts'
 
 /**
  * Options the monolith owns for the whole deployment. An app that sets one is
@@ -23,10 +24,18 @@ const SHARED_OPTIONS = [
  * its own, but mounting several apps means only one could ever win — so rather
  * than let one app's copy silently disappear, say so.
  */
-const SINGLETON_FILES: Array<{ names: string[]; why: string }> = [
+const SINGLETON_FILES: Array<{
+  names: string[]
+  why: string
+  /** A file of this kind a monolith can take over after all. */
+  portable?: (file: string) => boolean
+}> = [
   {
     names: ['proxy', 'middleware', 'src/proxy', 'src/middleware'],
     why: 'a deployment has one proxy; the monolith would have to run it and strip the mount prefix itself',
+    // The locale proxy from @fairgarden/indicators takes each app by its
+    // mount, so the monolith's own proxy runs it for this app too.
+    portable: isLocaleProxy,
   },
   {
     names: ['instrumentation', 'src/instrumentation'],
@@ -105,8 +114,9 @@ export const findPortabilityProblems = (
     }
   }
 
-  for (const { names, why } of SINGLETON_FILES) {
+  for (const { names, why, portable } of SINGLETON_FILES) {
     const found = names.map((name) => findFile(root, name)).find(Boolean)
+    if (found && portable?.(path.join(root, found))) continue
     if (found) problems.push(`${found}: ${why}`)
   }
 
@@ -164,6 +174,16 @@ const markReported = (root: string): void => {
   process.env[REPORTED_ENV] = [...seen, root].join(path.delimiter)
 }
 
+/**
+ * Write a report once per build, however many processes load the config:
+ * each build worker inherits the environment this marks.
+ */
+export const reportOnce = (key: string, report: string): void => {
+  if (alreadyReported(key)) return
+  markReported(key)
+  process.stderr.write(`${report}\n`)
+}
+
 const describe = (problems: string[]): string =>
   [
     `This app would not port cleanly into a monolith:`,
@@ -198,10 +218,7 @@ export const withMonolithicPortability = (
 
   if (problems.length > 0) {
     if (options.level === 'error') throw new Error(describe(problems))
-    if (!alreadyReported(root)) {
-      markReported(root)
-      process.stderr.write(`${describe(problems)}\n`)
-    }
+    reportOnce(root, describe(problems))
   }
 
   return nextConfig

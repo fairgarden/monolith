@@ -19,7 +19,8 @@ It reports config the monolith owns or that has to be shared, conventions a
 deployment only gets one of (`proxy`/`middleware`, `instrumentation`,
 `pages/_app`, `pages/_document`), and routes that only mean anything at the site
 root (`robots`, `sitemap`, `manifest`, which would end up at
-`/<name>/robots.txt`). See
+`/<name>/robots.txt`). A locale proxy from `@fairgarden/indicators` is the
+exception, since the monolith's own proxy runs it at each app's mount. See
 [`withMonolithicPortability`](/functions/withMonolithicPortability).
 
 ## Imports

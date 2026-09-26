@@ -5,6 +5,8 @@ import { linkApps } from './link.ts'
 import { resolveApps } from './resolve.ts'
 import { mergeHeaders, mergeRedirects, mergeRewrites } from './routes.ts'
 import { MOUNTS_ENV } from './mounts.ts'
+import { reportOnce } from './portability.ts'
+import { unservedLocaleProxies } from './proxies.ts'
 import type {
   LinkStrategy,
   MonolithApps,
@@ -83,6 +85,12 @@ export const withMonolith = (
 
     assertCompatible(nextConfig, resolved, root)
     registered = resolved
+
+    // Not fatal: the app still serves every page, only nobody arriving at its
+    // root is offered their language.
+    for (const { app, message } of unservedLocaleProxies(root, resolved)) {
+      reportOnce(`${app.root}#locale-proxy`, message)
+    }
 
     if (!skipLinking()) {
       const strategy = pickStrategy(options.strategy, phase)
