@@ -35,6 +35,10 @@ export const mountPrefix = (packageName: string): string => {
   }
 }
 
+/** Whether `path` is the mount itself or something under it, query and fragment included. */
+const isUnder = (path: string, prefix: string): boolean =>
+  path.startsWith(prefix) && ['', '/', '?', '#'].includes(path.charAt(prefix.length))
+
 /**
  * Move an app-relative href into the app's mount point.
  *
@@ -47,7 +51,12 @@ export const prefixHref = <T extends Href>(href: T, prefix: string): T => {
 
   if (typeof href === 'string') {
     if (!href.startsWith('/') || href.startsWith('//')) return href
-    if (href === prefix || href.startsWith(`${prefix}/`)) return href
+    if (isUnder(href, prefix)) return href
+    // The app's root is the mount itself, as it is under Next's basePath:
+    // `/id`, not `/id/`, which is a redirect away.
+    if (href === '/' || href.startsWith('/?') || href.startsWith('/#')) {
+      return `${prefix}${href.slice(1)}` as T
+    }
     return `${prefix}${href}` as T
   }
 

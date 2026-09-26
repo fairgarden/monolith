@@ -8,7 +8,13 @@ test('leaves hrefs alone when the app is not mounted', () => {
 
 test('moves app-relative hrefs under the mount', () => {
   assert.equal(prefixHref('/a/b', '/id'), '/id/a/b')
-  assert.equal(prefixHref('/', '/id'), '/id/')
+})
+
+test("maps the app's root to the mount itself, as basePath does", () => {
+  assert.equal(prefixHref('/', '/id'), '/id')
+  assert.equal(prefixHref('/?error=expired', '/id'), '/id?error=expired')
+  assert.equal(prefixHref('/#referrals', '/id'), '/id#referrals')
+  assert.deepEqual(prefixHref({ pathname: '/' }, '/id'), { pathname: '/id' })
 })
 
 test('leaves absolute and protocol-relative URLs alone', () => {
@@ -24,6 +30,8 @@ test('leaves fragments and relative hrefs alone', () => {
 test('does not prefix twice', () => {
   assert.equal(prefixHref('/id/a/b', '/id'), '/id/a/b')
   assert.equal(prefixHref('/id', '/id'), '/id')
+  assert.equal(prefixHref('/id?x=1', '/id'), '/id?x=1')
+  assert.equal(prefixHref('/id#top', '/id'), '/id#top')
 })
 
 test('does not mistake a lookalike prefix for the mount', () => {
