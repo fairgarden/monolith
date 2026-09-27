@@ -29,7 +29,7 @@
     }
   },
   "bin": {
-    "fg-monolith": "./dist/cli.js"
+    "fg-monolith": "dist/cli.js"
   },
   "files": [
     "dist"
@@ -41,11 +41,12 @@
     "test": "node --test test/*.test.js",
     "canary": "fg-dist canary",
     "release": "fg-dist release",
-    "release:check": "fg-dist release --check"
+    "release:check": "fg-dist release --check",
+    "changelog": "fg-dist changelog"
   },
   "dependencies": {
     "@babel/parser": "^7.29.9",
-    "@fairgarden/distribution": "^0.1.0-alpha.0",
+    "@fairgarden/distribution": "^0.1.0-alpha.2",
     "merge-package.json": "^9.1.0",
     "semver": "^7.8.5",
     "sync-directory": "^6.0.5"
