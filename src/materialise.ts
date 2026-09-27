@@ -149,13 +149,13 @@ const SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const
 
 const onSignal = (signal: NodeJS.Signals): void => {
   restore()
-  const hasOtherListeners = process.listeners(signal).some((listener) => listener !== onSignal)
-  if (!hasOtherListeners) setImmediate(() => process.kill(process.pid, signal))
+  for (const handled of SIGNALS) process.removeListener(handled, onSignal)
+  if (process.listenerCount(signal) === 0) setImmediate(() => process.kill(process.pid, signal))
 }
 
 const listen = (): void => {
   process.once('exit', restore)
-  for (const signal of SIGNALS) process.once(signal, onSignal)
+  for (const signal of SIGNALS) process.on(signal, onSignal)
 }
 
 /**
