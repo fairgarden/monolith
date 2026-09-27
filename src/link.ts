@@ -23,6 +23,7 @@ import {
   sync as syncDirectorySync,
 } from 'sync-directory'
 import type { LinkStrategy, ResolvedApp } from './types.ts'
+import { forgetLeftover, isLeftover, strangers } from './materialise.ts'
 
 export interface LinkOptions {
   strategy: LinkStrategy
@@ -108,10 +109,29 @@ const linkSource = async (
   const existing = await lstat(target).catch(() => undefined)
   if (existing?.isSymbolicLink() && (await pointsAt(target, source))) return
 
+  // Something real where the link belongs: a build stopped before it could
+  // put the link back leaves the app's files there (see materialise.ts). It is
+  // replaced only when every file in it is the app's; anything else is
+  // somebody's work, and deleting it to make way would lose it.
+  const leftover = existing !== undefined && isLeftover(monolithRoot, target)
+  const foreign = leftover ? strangers(target, source) : []
+  if (foreign.length > 0) {
+    const shown = (at: string): string => path.relative(monolithRoot, at) || at
+    throw new Error(
+      `${shown(target)} should be a link to ${path.relative(path.dirname(target), source)}, ` +
+        `but it is ${existing?.isDirectory() ? 'a directory' : 'a file'} — what a build stopped ` +
+        `before it could put the link back leaves. It has what the app does not:\n` +
+        foreign.map((file) => `  ${shown(file)}`).join('\n') +
+        `\nMove ${foreign.length === 1 ? 'it' : 'them'} into ${path.relative(monolithRoot, source)} ` +
+        `or delete ${foreign.length === 1 ? 'it' : 'them'}, then run this again.`
+    )
+  }
+
   await mkdir(path.dirname(target), { recursive: true })
   await clear(target, monolithRoot)
   // Relative so the tree stays valid if the repo is moved or mounted elsewhere.
   await symlink(path.relative(path.dirname(target), source), target, 'dir')
+  if (leftover) forgetLeftover(monolithRoot, target)
 }
 
 /**
@@ -362,6 +382,9 @@ const findCollisions = async (
     // A symlink pointing where this app would point is a previous run's.
     if (existing.isSymbolicLink() && (await pointsAt(target, claim.source))) continue
     if (existing.isSymbolicLink()) continue
+    // So is a directory a build stopped before it could put its link back
+    // leaves. Linking puts it back, or says what is in the way.
+    if (isLeftover(monolithRoot, target)) continue
 
     problems.push(
       `"${claim.app}" serves ${where} (${claim.what}), which the monolith ` +
