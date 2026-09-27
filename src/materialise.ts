@@ -150,7 +150,7 @@ const SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const
 const onSignal = (signal: NodeJS.Signals): void => {
   restore()
   process.removeListener(signal, onSignal)
-  if (process.listenerCount(signal) === 0) process.kill(process.pid, signal)
+  if (process.listenerCount(signal) === 0) setImmediate(() => process.kill(process.pid, signal))
 }
 
 const listen = (): void => {
