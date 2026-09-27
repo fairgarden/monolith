@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "@babel/parser": "^7.29.9",
-    "@fairgarden/distribution": "^0.1.0-alpha.2",
+    "@fairgarden/distribution": "^0.1.0-alpha.3",
     "merge-package.json": "^9.1.0",
     "semver": "^7.8.5",
     "sync-directory": "^6.0.5"
