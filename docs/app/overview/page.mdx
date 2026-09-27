@@ -38,6 +38,14 @@ app is told its mount through the `MONOLITH_MOUNTS` environment variable, which
 read. Unset means the app is running on its own, which is the same as being
 mounted at the root — so the same code works either way.
 
+`MONOLITH_APPS` says the same about every app, with the `fairgarden` part of
+its `package.json`, so apps can find the others they work with and wire
+themselves to them: an identity service enrols the apps that declare they sign
+in with it, at their mounts on its own origin, and they find it at its mount.
+Nobody writes those URLs into the environment, and they follow the deployment
+to any domain, a preview's included. Both are fixed at build time, and neither
+is a secret.
+
 ## It checks they can live together
 
 An app that needs a newer Next than the monolith, or a different major, stops

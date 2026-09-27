@@ -10,6 +10,19 @@
 export const MOUNTS_ENV = 'MONOLITH_MOUNTS'
 
 /**
+ * Environment variable carrying what each mounted app says about itself: its
+ * mount, and the `fairgarden` part of its package.json, as a JSON object keyed
+ * by package name.
+ *
+ * So an app can find the others it works with in the same deployment and wire
+ * itself to them — an identity service enrolling the apps that sign in with
+ * it, at their mounts on its own origin — without anyone writing their URLs
+ * into the environment. Fixed at build time, like `MONOLITH_MOUNTS`, and never
+ * a secret: package.json is published.
+ */
+export const APPS_ENV = 'MONOLITH_APPS'
+
+/**
  * The shape of a `next/link` href, without depending on Next to say so.
  *
  * `pathname` is nullable because Next's own `UrlObject` allows it.
