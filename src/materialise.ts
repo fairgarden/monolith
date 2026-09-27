@@ -137,7 +137,6 @@ const restore = (): void => {
       // next dev, build or start links it again.
     }
   }
-  if (pending.length === 0) unlisten()
 }
 
 /**
@@ -148,24 +147,12 @@ const restore = (): void => {
  */
 const SIGNALS = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const
 
-let listening = false
-
-const unlisten = (): void => {
-  if (!listening) return
-  process.removeListener('exit', restore)
-  for (const signal of SIGNALS) process.removeListener(signal, onSignal)
-  listening = false
-}
-
 const onSignal = (signal: NodeJS.Signals): void => {
   restore()
-  process.removeListener(signal, onSignal)
-  setImmediate(() => process.kill(process.pid, signal))
+  if (process.listenerCount(signal) === 0) process.kill(process.pid, signal)
 }
 
 const listen = (): void => {
-  if (listening) return
-  listening = true
   process.once('exit', restore)
   for (const signal of SIGNALS) process.once(signal, onSignal)
 }
