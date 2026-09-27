@@ -2,6 +2,7 @@ import path from 'node:path'
 import type { NextConfig } from 'next'
 import { assertCompatible } from './compat.ts'
 import { linkApps } from './link.ts'
+import { materialisePublic } from './materialise.ts'
 import { resolveApps } from './resolve.ts'
 import { mergeHeaders, mergeRedirects, mergeRewrites } from './routes.ts'
 import { MOUNTS_ENV } from './mounts.ts'
@@ -31,12 +32,17 @@ export {
 } from './portability.ts'
 
 const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
+const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 
 /**
  * Set by the CLI, which loads the monolith's config only to discover which apps
- * it composes and must not touch the file tree while doing so.
+ * it composes and must not touch the file tree while doing so. A worker Next
+ * starts loads the config again too, after the process that started it has
+ * linked everything — linking again there would undo what that process
+ * materialised for the build.
  */
-const skipLinking = (): boolean => process.env.FG_MONOLITH_SKIP_LINK === '1'
+const skipLinking = (): boolean =>
+  process.env.FG_MONOLITH_SKIP_LINK === '1' || process.env.IS_NEXT_WORKER === 'true'
 
 /** Apps seen by the most recent `withMonolith` evaluation, for the CLI. */
 let registered: ResolvedApp[] = []
@@ -98,7 +104,7 @@ export const withMonolith = (
         root,
         options.sourceDir ?? path.join('src', 'app')
       )
-      await linkApps(root, resolved, {
+      const mounted = await linkApps(root, resolved, {
         strategy,
         sourceDir,
         sourcePagesDir: path.join(path.dirname(sourceDir), 'pages'),
@@ -108,6 +114,8 @@ export const withMonolith = (
           options.watch ??
           (strategy !== 'source' && phase === PHASE_DEVELOPMENT_SERVER),
       })
+      // What deploys a build copies public/ without following its links.
+      if (phase === PHASE_PRODUCTION_BUILD) materialisePublic(root, mounted)
     }
 
     const mounts = Object.fromEntries(
