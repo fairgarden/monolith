@@ -79,3 +79,16 @@ test('reports the package that could not be resolved at all', async () => {
     /Is it a dependency of the monolith\?/
   )
 })
+
+test('tells each app what the others it is mounted beside say about themselves', async () => {
+  const root = fixture({ checkoutHasRoutes: true })
+  const manifest = path.join(root, 'modules', 'widget', 'package.json')
+  writeFileSync(manifest, JSON.stringify({ name: '@acme/widget', fairgarden: { idClient: { name: 'Widget' } } }))
+  const config = await withMonolith({}, { widget: { root: 'modules/widget' } }, { root, selfReference: false })(
+    'phase-production-build'
+  )
+  assert.deepEqual(JSON.parse(config.env.MONOLITH_APPS), {
+    '@acme/widget': { mount: '/widget', fairgarden: { idClient: { name: 'Widget' } } },
+  })
+})
+

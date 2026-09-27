@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import type { NextConfig } from 'next'
 import { assertCompatible } from './compat.ts'
@@ -5,7 +6,7 @@ import { linkApps } from './link.ts'
 import { materialisePublic } from './materialise.ts'
 import { resolveApps } from './resolve.ts'
 import { mergeHeaders, mergeRedirects, mergeRewrites } from './routes.ts'
-import { MOUNTS_ENV } from './mounts.ts'
+import { APPS_ENV, MOUNTS_ENV } from './mounts.ts'
 import { reportOnce } from './portability.ts'
 import { unservedLocaleProxies } from './proxies.ts'
 import type {
@@ -24,7 +25,7 @@ export type {
 } from './types.ts'
 export { prefixPath } from './routes.ts'
 
-export { MOUNTS_ENV } from './mounts.ts'
+export { APPS_ENV, MOUNTS_ENV } from './mounts.ts'
 export {
   withMonolithicPortability,
   findPortabilityProblems,
@@ -43,6 +44,15 @@ const PHASE_PRODUCTION_BUILD = 'phase-production-build'
  */
 const skipLinking = (): boolean =>
   process.env.FG_MONOLITH_SKIP_LINK === '1' || process.env.IS_NEXT_WORKER === 'true'
+
+/** The `fairgarden` part of an app's package.json, or undefined. */
+const fairgardenOf = (root: string): unknown => {
+  try {
+    return (JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as { fairgarden?: unknown }).fairgarden
+  } catch {
+    return undefined
+  }
+}
 
 /** Apps seen by the most recent `withMonolith` evaluation, for the CLI. */
 let registered: ResolvedApp[] = []
@@ -123,10 +133,21 @@ export const withMonolith = (
         app.packageName ? [[app.packageName, app.prefix]] : []
       )
     )
+    const described = Object.fromEntries(
+      resolved.flatMap((app) =>
+        app.packageName
+          ? [[app.packageName, { mount: app.prefix, fairgarden: fairgardenOf(app.root) }]]
+          : []
+      )
+    )
 
     return {
       ...nextConfig,
-      env: { ...nextConfig.env, [MOUNTS_ENV]: JSON.stringify(mounts) },
+      env: {
+        ...nextConfig.env,
+        [MOUNTS_ENV]: JSON.stringify(mounts),
+        [APPS_ENV]: JSON.stringify(described),
+      },
       rewrites: await mergeRewrites(nextConfig, resolved),
       redirects: await mergeRedirects(nextConfig, resolved),
       headers: await mergeHeaders(nextConfig, resolved),
